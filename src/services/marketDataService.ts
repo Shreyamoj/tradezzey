@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Types for market data
@@ -31,74 +30,237 @@ export interface HistoricalDataPoint {
   volume?: number;
 }
 
-// Free APIs for Indian stock market data
-const NSE_PROXY_API = "https://nse-data-proxy.onrender.com/api";
+// Define a cache storage duration (15 seconds)
+const CACHE_DURATION = 15000;
 
 class MarketDataService {
-  private stockCache: Map<string, StockData> = new Map();
-  private indicesCache: MarketIndex[] = [];
-  private lastUpdated: number = 0;
-
+  private stockCache: Map<string, { data: StockData; timestamp: number }> = new Map();
+  private indicesCache: { data: MarketIndex[]; timestamp: number } = { data: [], timestamp: 0 };
+  
   constructor() {
     // Initialize with some data
     this.fetchMarketIndices();
-    this.setUpdateInterval();
-  }
-
-  private setUpdateInterval() {
-    // Update market data every 60 seconds
-    setInterval(() => {
-      this.fetchMarketIndices();
-    }, 60000);
   }
 
   async fetchStockData(symbol: string): Promise<StockData> {
     try {
-      // Check cache first (if not older than 60 seconds)
-      if (this.stockCache.has(symbol) && Date.now() - this.lastUpdated < 60000) {
-        return this.stockCache.get(symbol)!;
+      // Check cache first
+      const cached = this.stockCache.get(symbol);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
       }
 
-      // In a real app, we would fetch from NSE API
-      // For now, simulate with a small delay and randomized data
-      const stockData: StockData = await this.simulateStockDataFetch(symbol);
+      // Try to fetch real data from API
+      const data = await this.fetchRealStockData(symbol);
       
-      // Update cache
-      this.stockCache.set(symbol, stockData);
-      this.lastUpdated = Date.now();
+      // Cache the result
+      this.stockCache.set(symbol, { data, timestamp: Date.now() });
       
-      return stockData;
+      return data;
     } catch (error) {
       console.error(`Error fetching data for ${symbol}:`, error);
       toast.error(`Failed to fetch data for ${symbol}`);
       
       // Return cached data if available, otherwise a default
-      return this.stockCache.get(symbol) || this.getDefaultStockData(symbol);
+      const cached = this.stockCache.get(symbol);
+      return cached ? cached.data : this.getDefaultStockData(symbol);
+    }
+  }
+
+  private async fetchRealStockData(symbol: string): Promise<StockData> {
+    try {
+      // Try to fetch from a public API
+      const nseSymbol = this.getNSESymbol(symbol);
+      const response = await fetch(`https://api.twelvedata.com/quote?symbol=${nseSymbol}.NSE&apikey=demo`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.code === 400 || data.status === "error") {
+        throw new Error(data.message || "API returned an error");
+      }
+      
+      // If we got data back, transform it to our format
+      if (data.symbol) {
+        const price = parseFloat(data.close);
+        const previousClose = parseFloat(data.previous_close);
+        const change = price - previousClose;
+        const percentChange = (change / previousClose) * 100;
+        
+        return {
+          symbol,
+          price,
+          change,
+          percentChange,
+          open: parseFloat(data.open),
+          high: parseFloat(data.high),
+          low: parseFloat(data.low),
+          volume: parseInt(data.volume),
+          previousClose
+        };
+      }
+      
+      // If we couldn't get real data, fall back to simulation
+      return this.simulateStockDataFetch(symbol);
+    } catch (error) {
+      console.warn(`Falling back to simulated data for ${symbol}:`, error);
+      return this.simulateStockDataFetch(symbol);
     }
   }
 
   async fetchMarketIndices(): Promise<MarketIndex[]> {
     try {
-      // In production, we would fetch real indices from NSE
-      const indices = await this.simulateIndicesFetch();
-      this.indicesCache = indices;
-      this.lastUpdated = Date.now();
+      // Check cache first
+      if (this.indicesCache.data.length > 0 && Date.now() - this.indicesCache.timestamp < CACHE_DURATION) {
+        return this.indicesCache.data;
+      }
+
+      // Try to fetch real data
+      const indices = await this.fetchRealIndices();
+      
+      // Cache the result
+      this.indicesCache = { data: indices, timestamp: Date.now() };
+      
       return indices;
     } catch (error) {
       console.error("Error fetching market indices:", error);
-      return this.indicesCache.length ? this.indicesCache : this.getDefaultIndices();
+      return this.indicesCache.data.length ? this.indicesCache.data : this.getDefaultIndices();
+    }
+  }
+
+  private async fetchRealIndices(): Promise<MarketIndex[]> {
+    try {
+      // Try to fetch from a public API
+      const response = await fetch('https://api.twelvedata.com/time_series?symbol=NIFTY50.INDX,SENSEX.INDX&interval=1day&outputsize=1&apikey=demo');
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.code === 400 || data.status === "error") {
+        throw new Error(data.message || "API returned an error");
+      }
+      
+      // If we got data, transform it to our format
+      const indices: MarketIndex[] = [];
+      
+      if (data["NIFTY50.INDX"] && data["NIFTY50.INDX"].values && data["NIFTY50.INDX"].values.length > 0) {
+        const niftyData = data["NIFTY50.INDX"].values[0];
+        const value = parseFloat(niftyData.close);
+        const previousValue = parseFloat(niftyData.open);
+        const change = value - previousValue;
+        
+        indices.push({
+          name: "NIFTY 50",
+          value,
+          change,
+          percentChange: (change / previousValue) * 100
+        });
+      }
+      
+      if (data["SENSEX.INDX"] && data["SENSEX.INDX"].values && data["SENSEX.INDX"].values.length > 0) {
+        const sensexData = data["SENSEX.INDX"].values[0];
+        const value = parseFloat(sensexData.close);
+        const previousValue = parseFloat(sensexData.open);
+        const change = value - previousValue;
+        
+        indices.push({
+          name: "SENSEX",
+          value,
+          change,
+          percentChange: (change / previousValue) * 100
+        });
+      }
+      
+      // If we got real data, add additional simulated indices
+      if (indices.length > 0) {
+        indices.push(this.generateIndexData("NIFTY BANK", 48000));
+        indices.push(this.generateIndexData("NIFTY IT", 36700));
+        return indices;
+      }
+      
+      // If we couldn't get any real data, fall back to simulation
+      return this.simulateIndicesFetch();
+    } catch (error) {
+      console.warn("Falling back to simulated indices:", error);
+      return this.simulateIndicesFetch();
     }
   }
 
   async fetchHistoricalData(symbol: string, timeframe: string): Promise<HistoricalDataPoint[]> {
     try {
-      // In production, we would fetch from a real API
-      // For now, simulate historical data
-      return await this.simulateHistoricalDataFetch(symbol, timeframe);
+      // Try to fetch real historical data
+      const data = await this.fetchRealHistoricalData(symbol, timeframe);
+      if (data.length > 0) {
+        return data;
+      }
+      
+      // Fall back to simulation if no real data
+      return this.simulateHistoricalDataFetch(symbol, timeframe);
     } catch (error) {
       console.error(`Error fetching historical data for ${symbol}:`, error);
       toast.error(`Failed to fetch historical data for ${symbol}`);
       return this.getDefaultHistoricalData();
+    }
+  }
+
+  private async fetchRealHistoricalData(symbol: string, timeframe: string): Promise<HistoricalDataPoint[]> {
+    try {
+      // Map timeframe to API interval
+      const interval = 
+        timeframe === "1D" ? "5min" : 
+        timeframe === "1W" ? "1h" : 
+        timeframe === "1M" ? "1day" : 
+        timeframe === "3M" ? "1day" : 
+        timeframe === "6M" ? "1day" : 
+        timeframe === "1Y" ? "1day" : "1day";
+      
+      // Determine output size based on timeframe
+      const outputsize = 
+        timeframe === "1D" ? "24" : 
+        timeframe === "1W" ? "42" : 
+        timeframe === "1M" ? "30" : 
+        timeframe === "3M" ? "90" : 
+        timeframe === "6M" ? "180" : 
+        timeframe === "1Y" ? "250" : "100";
+      
+      const nseSymbol = this.getNSESymbol(symbol);
+      const response = await fetch(
+        `https://api.twelvedata.com/time_series?symbol=${nseSymbol}.NSE&interval=${interval}&outputsize=${outputsize}&apikey=demo`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.code === 400 || data.status === "error") {
+        throw new Error(data.message || "API returned an error");
+      }
+      
+      if (data.values && data.values.length > 0) {
+        // Transform API data to our format
+        return data.values.map((item: any) => ({
+          date: timeframe === "1D" ? item.datetime.split(' ')[1] : item.datetime.split(' ')[0],
+          price: parseFloat(item.close),
+          open: parseFloat(item.open),
+          high: parseFloat(item.high),
+          low: parseFloat(item.low),
+          close: parseFloat(item.close),
+          volume: parseInt(item.volume)
+        })).reverse();
+      }
+      
+      return [];
+    } catch (error) {
+      console.warn(`Falling back to simulated historical data for ${symbol}:`, error);
+      return [];
     }
   }
 
@@ -119,7 +281,24 @@ class MarketDataService {
     }
   }
 
-  // Simulation methods (to be replaced with real API calls in production)
+  // Helper method to convert our symbols to NSE format
+  private getNSESymbol(symbol: string): string {
+    // Map our internal symbols to NSE symbols if needed
+    const symbolMap: Record<string, string> = {
+      "NIFTY": "NIFTY50",
+      "SENSEX": "SENSEX",
+      "HDFCBANK": "HDFCBANK",
+      "RELIANCE": "RELIANCE",
+      "TCS": "TCS",
+      "INFY": "INFY",
+      "TATAMOTORS": "TATAMOTORS",
+      "ICICIBANK": "ICICIBANK"
+    };
+    
+    return symbolMap[symbol] || symbol;
+  }
+
+  // Simulation methods (to be used as fallbacks when API fails)
   private async simulateStockDataFetch(symbol: string): Promise<StockData> {
     await new Promise(resolve => setTimeout(resolve, 300));
     

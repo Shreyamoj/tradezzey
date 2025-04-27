@@ -3,17 +3,17 @@ import React from 'react';
 import { Search, Bell, BarChart2, Settings, User } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   return (
     <nav className="flex items-center justify-between py-3 px-4 border-b border-border bg-card">
       <div className="flex items-center">
-        <h1 className="text-xl font-bold text-primary mr-8">Tradezzey</h1>
+        <Link to="/" className="text-xl font-bold text-primary mr-8">Tradezzey</Link>
         <div className="hidden md:flex items-center space-x-6">
-          <a href="#" className="text-sm font-medium hover:text-primary transition-colors">Dashboard</a>
-          <a href="#" className="text-sm font-medium hover:text-primary transition-colors">Strategies</a>
-          <a href="#" className="text-sm font-medium hover:text-primary transition-colors">Backtesting</a>
-          <a href="#" className="text-sm font-medium hover:text-primary transition-colors">Analytics</a>
+          <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">Dashboard</Link>
+          <Link to="/strategies" className="text-sm font-medium hover:text-primary transition-colors">Strategies</Link>
+          <Link to="/backtesting" className="text-sm font-medium hover:text-primary transition-colors">Backtesting</Link>
         </div>
       </div>
       

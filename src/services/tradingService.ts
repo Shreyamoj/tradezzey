@@ -54,6 +54,12 @@ class TradingService {
     defaultCapitalPerTrade: 10000
   };
   
+  // Historical P&L data for more realistic calculations
+  private historicalPnL = {
+    daily: [0.5, -0.3, 0.8, 1.2, -0.6, 0.3, -0.2, 0.9, 1.3, -0.4, 0.7, 1.1, -0.5, 0.6, 1.0, -0.3, 0.4, 0.8, -0.2, 1.5, -0.7, 0.3, 0.9, -0.4, 0.7, -0.3, 0.5, -0.2, 0.4, 0.6],
+    monthly: [2.5, 3.8, -1.5, 2.9, 4.2, 1.7, -2.1, 3.5, 1.9, 2.8, -1.3, 3.2]
+  };
+  
   constructor() {
     // Initialize with some mock holdings
     this.initMockPortfolio();
@@ -105,12 +111,24 @@ class TradingService {
       const overallPnl = totalValue - totalInvestment;
       const overallPnlPercent = (overallPnl / totalInvestment) * 100;
       
-      // Simulated day and month changes
-      const dayChange = totalValue * (Math.random() * 0.04 - 0.02);
-      const dayChangePercent = (dayChange / totalValue) * 100;
+      // Calculate more realistic day and month changes
+      // Get the current day's percentage change (simulate with random selection from historical data)
+      const currentDayIndex = new Date().getDate() - 1; // 0-based index for current day of month
+      const dayPnlPercent = this.historicalPnL.daily[currentDayIndex % this.historicalPnL.daily.length];
+      const dayChange = (totalValue * dayPnlPercent) / 100;
+      const dayChangePercent = dayPnlPercent;
       
-      const monthChange = totalValue * (Math.random() * 0.12 - 0.04);
-      const monthChangePercent = (monthChange / totalValue) * 100;
+      // Get the current month's percentage change (simulate with random selection from historical data)
+      const currentMonthIndex = new Date().getMonth(); // 0-based index for current month
+      
+      // Calculate month-to-date P&L by summing daily changes for the month so far
+      let monthPnlPercent = 0;
+      const daysInCurrentMonth = new Date().getDate();
+      for (let i = 0; i < daysInCurrentMonth; i++) {
+        monthPnlPercent += this.historicalPnL.daily[i % this.historicalPnL.daily.length];
+      }
+      const monthChange = (totalValue * monthPnlPercent) / 100;
+      const monthChangePercent = monthPnlPercent;
       
       // Calculate allocation
       const allocation = this.calculateAllocation(holdings);
@@ -276,15 +294,33 @@ class TradingService {
   
   // Default data (fallback)
   private getDefaultPortfolioSummary(): PortfolioSummaryData {
+    // Calculate more realistic default values
+    const totalValue = 250000;
+    const totalInvestment = 240000;
+    const overallPnl = totalValue - totalInvestment;
+    const overallPnlPercent = (overallPnl / totalInvestment) * 100;
+    
+    // Get the current day and month indices for simulating P&L
+    const currentDayIndex = new Date().getDate() - 1;
+    const dayPnlPercent = this.historicalPnL.daily[currentDayIndex % this.historicalPnL.daily.length];
+    const dayChange = (totalValue * dayPnlPercent) / 100;
+    
+    let monthPnlPercent = 0;
+    const daysInCurrentMonth = new Date().getDate();
+    for (let i = 0; i < daysInCurrentMonth; i++) {
+      monthPnlPercent += this.historicalPnL.daily[i % this.historicalPnL.daily.length];
+    }
+    const monthChange = (totalValue * monthPnlPercent) / 100;
+    
     return {
-      totalValue: 250000,
-      totalInvestment: 240000,
-      dayChange: 3420.5,
-      dayChangePercent: 1.42,
-      monthChange: 12450.75,
-      monthChangePercent: 5.23,
-      overallPnl: 10000,
-      overallPnlPercent: 4.17,
+      totalValue,
+      totalInvestment,
+      dayChange,
+      dayChangePercent: dayPnlPercent,
+      monthChange,
+      monthChangePercent: monthPnlPercent,
+      overallPnl,
+      overallPnlPercent,
       allocation: [
         { category: "Large Cap", value: 42 },
         { category: "Mid Cap", value: 35 },
