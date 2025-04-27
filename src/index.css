@@ -96,7 +96,7 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: theme('colors.secondary');
+  background: theme('colors.secondary.DEFAULT');
   border-radius: 10px;
 }
 
