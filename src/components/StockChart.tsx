@@ -1,33 +1,55 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// Mock data for the chart
-const mockData = [
-  { date: '10:00', price: 1572 },
-  { date: '10:30', price: 1580 },
-  { date: '11:00', price: 1590 },
-  { date: '11:30', price: 1587 },
-  { date: '12:00', price: 1596 },
-  { date: '12:30', price: 1610 },
-  { date: '13:00', price: 1605 },
-  { date: '13:30', price: 1615 },
-  { date: '14:00', price: 1628 },
-  { date: '14:30', price: 1622 },
-  { date: '15:00', price: 1640 },
-];
+import { marketDataService, HistoricalDataPoint } from '../services/marketDataService';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 const timeFrames = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y'];
 const chartTypes = ['Line', 'Candle', 'OHLC', 'Area'];
 
 const StockChart: React.FC = () => {
-  const [activeTimeFrame, setActiveTimeFrame] = React.useState('1D');
-  const stockName = "NIFTY 50";
-  const currentPrice = 1640;
-  const previousClose = 1615;
+  const [activeTimeFrame, setActiveTimeFrame] = useState('1D');
+  const [stockSymbol, setStockSymbol] = useState("NIFTY");
+  const [chartData, setChartData] = useState<HistoricalDataPoint[]>([]);
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [previousClose, setPreviousClose] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch current price
+        const stockData = await marketDataService.fetchStockData(stockSymbol);
+        setCurrentPrice(stockData.price);
+        setPreviousClose(stockData.previousClose);
+        
+        // Fetch historical data
+        const history = await marketDataService.fetchHistoricalData(stockSymbol, activeTimeFrame);
+        setChartData(history);
+      } catch (error) {
+        console.error("Error fetching chart data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+    
+    // Set up refresh interval
+    const intervalId = setInterval(() => {
+      if (activeTimeFrame === '1D') {
+        fetchData();
+      }
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [stockSymbol, activeTimeFrame]);
+  
   const change = currentPrice - previousClose;
   const percentChange = (change / previousClose * 100).toFixed(2);
   const isPositive = change >= 0;
@@ -37,7 +59,7 @@ const StockChart: React.FC = () => {
       <div className="flex justify-between items-center mb-4">
         <div>
           <div className="flex items-center">
-            <h2 className="text-lg font-semibold">{stockName}</h2>
+            <h2 className="text-lg font-semibold">{stockSymbol}</h2>
             <div className="ml-3 flex items-center">
               <span className="text-xl font-bold">₹{currentPrice.toLocaleString()}</span>
               <span className={`ml-2 flex items-center text-sm ${isPositive ? 'text-profit' : 'text-loss'}`}>
@@ -50,6 +72,26 @@ const StockChart: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          <Select 
+            defaultValue="NIFTY"
+            value={stockSymbol}
+            onValueChange={setStockSymbol}
+          >
+            <SelectTrigger className="w-[120px] h-8">
+              <SelectValue placeholder="Select Stock" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NIFTY">NIFTY 50</SelectItem>
+              <SelectItem value="SENSEX">SENSEX</SelectItem>
+              <SelectItem value="RELIANCE">RELIANCE</SelectItem>
+              <SelectItem value="HDFCBANK">HDFCBANK</SelectItem>
+              <SelectItem value="TCS">TCS</SelectItem>
+              <SelectItem value="INFY">INFOSYS</SelectItem>
+              <SelectItem value="TATAMOTORS">TATA MOTORS</SelectItem>
+              <SelectItem value="ICICIBANK">ICICI BANK</SelectItem>
+            </SelectContent>
+          </Select>
+          
           <Select defaultValue="Line">
             <SelectTrigger className="w-[100px] h-8">
               <SelectValue placeholder="Chart Type" />
@@ -89,10 +131,29 @@ const StockChart: React.FC = () => {
         ))}
       </div>
       
-      <div className="h-[280px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-[280px] w-full relative">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70 z-10">
+            <div className="loading-spinner w-8 h-8 border-2 border-r-transparent border-primary rounded-full animate-spin"></div>
+          </div>
+        )}
+        
+        <ChartContainer 
+          className="h-full w-full"
+          config={{
+            line: {
+              color: isPositive ? "#0ECB81" : "#F6465D"
+            },
+            grid: {
+              color: "#1E2D3D"
+            },
+            reference: {
+              color: "#888888"
+            }
+          }}
+        >
           <LineChart
-            data={mockData}
+            data={chartData}
             margin={{
               top: 5,
               right: 5,
@@ -103,13 +164,8 @@ const StockChart: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" className="chart-grid" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis domain={['dataMin - 20', 'dataMax + 20']} tick={{ fontSize: 10 }} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#141B2D', 
-                borderColor: '#2962FF',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
+            <ChartTooltip 
+              content={<ChartTooltipContent />}
             />
             <ReferenceLine y={previousClose} stroke="#888" strokeDasharray="3 3" />
             <Line 
@@ -121,7 +177,7 @@ const StockChart: React.FC = () => {
               strokeWidth={2}
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
     </div>
   );

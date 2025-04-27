@@ -5,7 +5,7 @@ import MarketOverview from './MarketOverview';
 import StockSearch from './StockSearch';
 import BacktestModule from './BacktestModule';
 import PortfolioSummary from './PortfolioSummary';
-import TechnicalIndicators from './TechnicalIndicators';
+import LiveTrade from './LiveTrade';
 
 const Dashboard: React.FC = () => {
   return (
@@ -21,7 +21,7 @@ const Dashboard: React.FC = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8">
-          <TechnicalIndicators />
+          <LiveTrade />
         </div>
         <div className="lg:col-span-4">
           <MarketOverview />
