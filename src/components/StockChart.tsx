@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { marketDataService, HistoricalDataPoint } from '../services/marketDataService';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { format } from "date-fns";
 
 const timeFrames = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y'];
 const chartTypes = ['Line', 'Candle', 'OHLC', 'Area'];
@@ -16,6 +17,7 @@ const StockChart: React.FC = () => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [previousClose, setPreviousClose] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const currentDate = format(new Date(), 'PP');
   
   useEffect(() => {
     const fetchData = async () => {
@@ -67,7 +69,7 @@ const StockChart: React.FC = () => {
               </span>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">NSE • INR • Real-time</p>
+          <p className="text-xs text-muted-foreground">NSE • INR • {currentDate}</p>
         </div>
         
         <div className="flex items-center gap-2">
