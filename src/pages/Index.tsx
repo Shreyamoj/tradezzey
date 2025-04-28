@@ -7,7 +7,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 p-4 overflow-hidden">
         <Dashboard />
       </main>
     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
@@ -55,8 +54,8 @@ const StockChart: React.FC = () => {
   const isPositive = change >= 0;
   
   return (
-    <div className="trading-card h-[400px]">
-      <div className="flex justify-between items-center mb-4">
+    <div className="trading-card h-[500px]">
+      <div className="flex justify-between items-center mb-2">
         <div>
           <div className="flex items-center">
             <h2 className="text-lg font-semibold">{stockSymbol}</h2>
@@ -117,7 +116,7 @@ const StockChart: React.FC = () => {
         </div>
       </div>
       
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-2">
         {timeFrames.map((tf) => (
           <Button 
             key={tf}
@@ -131,7 +130,7 @@ const StockChart: React.FC = () => {
         ))}
       </div>
       
-      <div className="h-[280px] w-full relative">
+      <div className="h-[400px] w-full relative">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/70 z-10">
             <div className="loading-spinner w-8 h-8 border-2 border-r-transparent border-primary rounded-full animate-spin"></div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Search, Bell, BarChart2, Settings, User } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   return (
-    <nav className="flex items-center justify-between py-3 px-4 border-b border-border bg-card">
+    <nav className="flex items-center justify-between h-14 px-4 border-b border-border bg-card">
       <div className="flex items-center">
         <Link to="/" className="text-xl font-bold text-primary mr-8">Tradezzey</Link>
         <div className="hidden md:flex items-center space-x-6">
