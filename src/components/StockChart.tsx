@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
@@ -6,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { marketDataService, HistoricalDataPoint } from '../services/marketDataService';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { format } from "date-fns";
+import { stockService } from '../services/apiService';
 
 const timeFrames = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y'];
 const chartTypes = ['Line', 'Candle', 'OHLC', 'Area'];
@@ -24,12 +26,37 @@ const StockChart: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Fetch current price
+        // Try to fetch from backend API first, fall back to marketDataService if needed
+        try {
+          const stockData = await stockService.getStock(stockSymbol);
+          setCurrentPrice(stockData.data.current_price);
+          setPreviousClose(stockData.data.previous_close);
+          
+          const historyResponse = await stockService.getHistoricalData(stockSymbol, activeTimeFrame);
+          if (historyResponse.data && historyResponse.data.length > 0) {
+            // Transform backend data to match our frontend format
+            const transformedData = historyResponse.data.map((item: any) => ({
+              date: item.date,
+              price: item.close_price,
+              open: item.open_price,
+              high: item.high_price,
+              low: item.low_price,
+              close: item.close_price,
+              volume: item.volume
+            }));
+            setChartData(transformedData);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.log("Backend API call failed, falling back to market data service", error);
+        }
+        
+        // Fall back to marketDataService
         const stockData = await marketDataService.fetchStockData(stockSymbol);
         setCurrentPrice(stockData.price);
         setPreviousClose(stockData.previousClose);
         
-        // Fetch historical data
         const history = await marketDataService.fetchHistoricalData(stockSymbol, activeTimeFrame);
         setChartData(history);
       } catch (error) {
